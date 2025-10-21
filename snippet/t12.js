@@ -172,7 +172,7 @@ async function 解析VL标头(二进制数据, WS接口, TCP接口) {
                 } else if (启用SOCKS5反代 == 'http') {
                     TCP接口 = await httpConnect(访问地址, 访问端口);
                 } else {
-                    let [反代IP地址, 反代IP端口] = 解析地址端口(反代IP);
+                    const [反代IP地址, 反代IP端口] = await 解析地址端口(反代IP);
                     TCP接口 = connect({ hostname: 反代IP地址, port: 反代IP端口 });
                 }
             }
@@ -210,17 +210,23 @@ function 验证VL的密钥(字节数组, 起始位置 = 0) {
 
 globalThis.DNS缓存记录 = globalThis.DNS缓存记录 ??= new Map();
 
-function 解析地址端口(反代IP) {
-    const proxyIP = 反代IP.toLowerCase();
+async function 解析地址端口(proxyIP) {
+    proxyIP = proxyIP.toLowerCase();
     let 地址 = proxyIP, 端口 = 443;
-    if (proxyIP.includes(']:')) {
-        端口 = proxyIP.split(']:')[1] || 端口;
-        地址 = proxyIP.split(']:')[0] + "]" || 地址;
-    } else if (proxyIP.split(':').length === 2) {
-        端口 = proxyIP.split(':')[1] || 端口;
-        地址 = proxyIP.split(':')[0] || 地址;
+    if (proxyIP.includes('.tp')) {
+        const tpMatch = proxyIP.match(/\.tp(\d+)/);
+        if (tpMatch) 端口 = parseInt(tpMatch[1], 10);
+        return [地址, 端口];
     }
-    if (proxyIP.includes('.tp')) 端口 = proxyIP.split('.tp')[1].split('.')[0] || 端口;
+    if (proxyIP.includes(']:')) {
+        const parts = proxyIP.split(']:');
+        地址 = parts[0] + ']';
+        端口 = parseInt(parts[1], 10) || 端口;
+    } else if (proxyIP.includes(':') && !proxyIP.startsWith('[')) {
+        const colonIndex = proxyIP.lastIndexOf(':');
+        地址 = proxyIP.slice(0, colonIndex);
+        端口 = parseInt(proxyIP.slice(colonIndex + 1), 10) || 端口;
+    }
     return [地址, 端口];
 }
 //第三步，创建客户端WS-CF-目标的传输通道并监听状态

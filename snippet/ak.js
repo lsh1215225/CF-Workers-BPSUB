@@ -95,7 +95,7 @@ function handleConnection(ws) {
                 } else if (启用SOCKS5反代 == 'http') {
                     sock = await httpConnect(host, port);
                 } else {
-                    let [反代IP地址, 反代IP端口] = 解析地址端口(反代IP);
+                    const [反代IP地址, 反代IP端口] = await 解析地址端口(反代IP);
                     sock = connect({ hostname: 反代IP地址, port: 反代IP端口 });
                 }
             }
@@ -270,17 +270,23 @@ async function 获取SOCKS5账号(address) {
     }
     return { username, password, hostname, port };
 }
-function 解析地址端口(反代IP) {
-    const proxyIP = 反代IP.toLowerCase();
+async function 解析地址端口(proxyIP) {
+    proxyIP = proxyIP.toLowerCase();
     let 地址 = proxyIP, 端口 = 443;
-    if (proxyIP.includes(']:')) {
-        端口 = proxyIP.split(']:')[1] || 端口;
-        地址 = proxyIP.split(']:')[0] + "]" || 地址;
-    } else if (proxyIP.split(':').length === 2) {
-        端口 = proxyIP.split(':')[1] || 端口;
-        地址 = proxyIP.split(':')[0] || 地址;
+    if (proxyIP.includes('.tp')) {
+        const tpMatch = proxyIP.match(/\.tp(\d+)/);
+        if (tpMatch) 端口 = parseInt(tpMatch[1], 10);
+        return [地址, 端口];
     }
-    if (proxyIP.includes('.tp')) 端口 = proxyIP.split('.tp')[1].split('.')[0] || 端口;
+    if (proxyIP.includes(']:')) {
+        const parts = proxyIP.split(']:');
+        地址 = parts[0] + ']';
+        端口 = parseInt(parts[1], 10) || 端口;
+    } else if (proxyIP.includes(':') && !proxyIP.startsWith('[')) {
+        const colonIndex = proxyIP.lastIndexOf(':');
+        地址 = proxyIP.slice(0, colonIndex);
+        端口 = parseInt(proxyIP.slice(colonIndex + 1), 10) || 端口;
+    }
     return [地址, 端口];
 }
 async function httpConnect(addressRemote, portRemote) {

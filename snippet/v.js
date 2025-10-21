@@ -636,13 +636,26 @@ async function handleUDPOutBound(webSocket, 协议响应头) {
 const WS_READY_STATE_OPEN = 1;
 import { connect } from 'cloudflare:sockets';
 async function getProxyConfiguration(colo, addressRemote, portRemote, ProxyIP, ProxyPort) {
-    if (ProxyIP.includes(']:')) {
-        ProxyPort = ProxyIP.split(']:')[1] || ProxyPort;
-        ProxyIP = ProxyIP.split(']:')[0] + "]" || ProxyIP;
-    } else if (ProxyIP.split(':').length === 2) {
-        ProxyPort = ProxyIP.split(':')[1] || ProxyPort;
-        ProxyIP = ProxyIP.split(':')[0] || ProxyIP;
-    }
-    if (ProxyIP.includes('.tp')) ProxyPort = ProxyIP.split('.tp')[1].split('.')[0] || ProxyPort;
+    [ProxyIP, ProxyPort] = await 解析地址端口(ProxyIP);
     return { ip: ProxyIP || addressRemote, port: ProxyPort || portRemote };
+}
+
+async function 解析地址端口(proxyIP) {
+    proxyIP = proxyIP.toLowerCase();
+    let 地址 = proxyIP, 端口 = 443;
+    if (proxyIP.includes('.tp')) {
+        const tpMatch = proxyIP.match(/\.tp(\d+)/);
+        if (tpMatch) 端口 = parseInt(tpMatch[1], 10);
+        return [地址, 端口];
+    }
+    if (proxyIP.includes(']:')) {
+        const parts = proxyIP.split(']:');
+        地址 = parts[0] + ']';
+        端口 = parseInt(parts[1], 10) || 端口;
+    } else if (proxyIP.includes(':') && !proxyIP.startsWith('[')) {
+        const colonIndex = proxyIP.lastIndexOf(':');
+        地址 = proxyIP.slice(0, colonIndex);
+        端口 = parseInt(proxyIP.slice(colonIndex + 1), 10) || 端口;
+    }
+    return [地址, 端口];
 }
